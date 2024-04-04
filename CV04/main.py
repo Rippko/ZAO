@@ -5,6 +5,7 @@ import math
 import struct
 from datetime import datetime
 import glob
+import time
 
 WHITE = (255, 255, 255)
 RED = (0, 0, 255)
@@ -26,10 +27,7 @@ def detect_eye_status(frame, eye_classifier):
         
         if circles is not None:
             circles = np.uint16(np.around(circles))
-            for circle in circles[0, :]:
-                center = (circle[0], circle[1])
-                radius = circle[2]
-                cv2.circle(frame, eye_center, ew // 3, GREEN, 3)
+            cv2.circle(frame, eye_center, ew // 3, GREEN, 3)
         else:
             cv2.circle(frame, eye_center, ew // 3, RED, 3)
 
@@ -39,7 +37,6 @@ def detect_mouth(frame, mouth_classifier):
         cv2.rectangle(frame, mouth, YELLOW, 10)
         cv2.rectangle(frame, mouth, WHITE, 4)
     
-
 def detect_faces(frame, front_classifier, profile_classifier, eye_classifier, mouth_classifier):
     front_faces, ints = front_classifier.detectMultiScale2(frame, scaleFactor=1.2, minNeighbors=6, minSize=(2, 2))
     profile_faces, p_ints = profile_classifier.detectMultiScale2(frame, scaleFactor=1.1, minNeighbors=12, minSize=(2, 2))
@@ -68,6 +65,7 @@ def main():
     mouth_classifier = cv2.CascadeClassifier('./haarcascades/haarcascade_smile.xml')
 
     while True:
+        start = time.time()
         # ret, frame = camera.read()
         # if not ret:
         #     break
@@ -76,6 +74,11 @@ def main():
             break
 
         frame = detect_faces(frame, front_classifier, profile_classifier, eyes_classifier, mouth_classifier)
+        end = time.time()
+        final = end - start
+
+        cv2.putText(frame, f"FPS: {1/final:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, WHITE, 2, cv2.LINE_AA)
+        cv2.putText(frame, f"DELTA: {final:.2f}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 1, WHITE, 2, cv2.LINE_AA)
 
         cv2.imshow('win_name', frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
