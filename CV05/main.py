@@ -77,6 +77,10 @@ def four_point_transform(image, one_c):
 def mean(data):
     return sum(data) / len(data)
 
+def describe_partking_spot(image, text: str, coordinates: tuple, font, text_color, circle_color):
+    cv2.putText(image, text, (int(coordinates[0] + 10), int(coordinates[1] + 10)), font, 1, text_color, 2)
+    cv2.circle(image, (int(coordinates[0]), int(coordinates[1])), 8, circle_color, -1)
+
 def pearson_correlation_coefficient(x, y):
     # Calculate means
     mean_x = mean(x)
@@ -263,24 +267,13 @@ def load_data_from_folders(occupied_folder: str, empty_folder: str):
     
     return images, labels
 
-def main(argv):
-    test_images = sorted(glob.glob("test_images_zao/*.jpg"))
-
-    ground_truth_data = load_ground_truth_data()
-
-    pkm_coordinates = []
-    with open('parking_map_python.txt', 'r') as pkm_file:
-        for line in pkm_file.readlines():
-            sp_line = line.strip().split(" ")
-            pkm_coordinates.append(sp_line)
-
+def lbp_detection(test_images: list, pkm_coordinates: list, ground_truth_data: list):
     images, labels = load_data_from_folders("full", "free")
 
     lbp_configs = [
         {'radius': 1, 'neighbors': 5}, # Best in case of time / accuracy tradeoff
         {'radius': 1, 'neighbors': 9}, # Best in case of accuracy
     ]
-
     training_images = []
     for image in images:
             img = cv2.imread(image)
@@ -321,16 +314,16 @@ def main(argv):
                 label, confidence = recognizer.predict(img_gray)
 
                 edges = canny_detect(one_place_img)
+                # edges = sobel_detect(one_place_img)
+                # edges = laplacian_detect(one_place_img)
                 nonzero_count = np.count_nonzero(edges)
                 #400 - 0.9955
                 if label == 0 and nonzero_count < 400:
                     empty_spaces_detected.append((0, one_place_img))
-                    cv2.putText(image_clone, str(n_park + 1), (int(center[0] + 10), int(center[1] + 10)), cv2.FONT_HERSHEY_SIMPLEX, 1, WHITE, 2)
-                    cv2.circle(image_clone, (int(center[0]), int(center[1])), 8, GREEN, -1)
+                    describe_partking_spot(image_clone, str(n_park + 1), center, cv2.FONT_HERSHEY_SIMPLEX, WHITE, GREEN)
                 else:
                     empty_spaces_detected.append((1, one_place_img))
-                    cv2.putText(image_clone, str(n_park + 1), (int(center[0] + 10), int(center[1] + 10)), cv2.FONT_HERSHEY_SIMPLEX, 1, WHITE, 2)
-                    cv2.circle(image_clone, (int(center[0]), int(center[1])), 8, RED, -1)
+                    describe_partking_spot(image_clone, str(n_park + 1), center, cv2.FONT_HERSHEY_SIMPLEX, WHITE, RED)
 
                 n_park += 1
             accuracy, fscore = calculate_accuracy_and_fscore(ground_truth, empty_spaces_detected)
@@ -343,6 +336,19 @@ def main(argv):
         print(f'Average accuracy: {mean([score[0] for score in scores])}, Average F-score: {mean([score[1] for score in scores])}')
         print(f"Time elapsed: {time}")
         print("=========================================================")
+
+def main(argv):
+    test_images = sorted(glob.glob("test_images_zao/*.jpg"))
+
+    ground_truth_data = load_ground_truth_data()
+
+    pkm_coordinates = []
+    with open('parking_map_python.txt', 'r') as pkm_file:
+        for line in pkm_file.readlines():
+            sp_line = line.strip().split(" ")
+            pkm_coordinates.append(sp_line)
+
+    lbp_detection(test_images, pkm_coordinates, ground_truth_data)
 
     
 if __name__ == "__main__":
